@@ -72,7 +72,7 @@ STYLESHEET = f"""
         font-weight: bold;
     }}
     QListWidget {{
-        background-color: {COLOR_PANEL_LIGHT};
+        background-color: #000000;
         border: 1px solid {COLOR_BORDER};
         border-radius: 4px;
         outline: none;
@@ -154,17 +154,11 @@ def resource_path(relative_path):
     获取资源的绝对路径 (兼容 PyInstaller 和 Nuitka Standalone) 
     """
     if getattr(sys, 'frozen', False):
-        # 针对 Nuitka Standalone (目录模式) 和 PyInstaller OneDir
-        # 在这些模式下，资源通常位于可执行文件同级或 sys.executable 所在目录
         base_path = os.path.dirname(sys.executable)
-        
-        # 针对 PyInstaller OneFile 和 Nuitka OneFile (如果未来切换模式)
         if hasattr(sys, '_MEIPASS'):
             base_path = sys._MEIPASS
     else:
-        # 开发环境
         base_path = os.path.dirname(os.path.abspath(__file__))
-        
     return os.path.join(base_path, relative_path)
 
 # --- Custom Widgets ---
@@ -531,7 +525,8 @@ class MainWindow(QMainWindow):
         self.tab_widget = QTabWidget()
         self.history_list = QListWidget()
         self.history_list.setFocusPolicy(Qt.NoFocus)
-        self.history_list.setAlternatingRowColors(True)
+        # --- 修改点: 禁用交替背景，确保全黑 ---
+        self.history_list.setAlternatingRowColors(False) 
         self.tab_widget.addTab(self.history_list, "历史数据")
         
         self.output_list = QListWidget()
