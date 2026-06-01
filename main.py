@@ -20,7 +20,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QTimer, pyqtSlot
 from PyQt5.QtGui import QFont, QColor, QBrush, QPixmap, QPainter
-from pynput import keyboard
+from pynput import keyboard, mouse
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -45,6 +45,7 @@ COLOR_BORDER = "#333333"
 COLOR_DANGER = "#ff2a6d"
 COLOR_WARNING = "#ffcc00"
 COLOR_SUCCESS = "#05ffa1"
+COLOR_NO_SHOT = "#777777"
 
 # --- Stylesheet (CSS) ---
 STYLESHEET = f"""
@@ -453,10 +454,11 @@ class MainWindow(QMainWindow):
     key_state_signal = pyqtSignal(str, bool) 
     start_timer_signal = pyqtSignal(str, int)
     stop_timer_signal = pyqtSignal(str)
-    key_press_signal = pyqtSignal(str, float) 
-    key_release_signal = pyqtSignal(str, float) 
+    key_press_signal = pyqtSignal(str, float)
+    key_release_signal = pyqtSignal(str, float)
+    mouse_click_signal = pyqtSignal(bool, float)
     log_signal = pyqtSignal(str)
-    update_dashboard_signal = pyqtSignal(float, float) 
+    update_dashboard_signal = pyqtSignal(float, float)
 
     def __init__(self):
         super().__init__()
@@ -476,6 +478,11 @@ class MainWindow(QMainWindow):
         self.last_record_time = 0
         self.min_time_between_records = 0.05
         self.same_direction_detection = False
+        self.shot_detection_window = 0.25
+        self.shot_pre_window = 0.05
+        self.mouse_left_pressed = False
+        self.recent_left_press_time = None
+        self.pending_shot_events = []
         
         self.background_recording_active = False
         self.background_buffer = []
@@ -570,9 +577,12 @@ class MainWindow(QMainWindow):
         row2 = QHBoxLayout()
         self.key_mapping_button = QPushButton("按键映射")
         self.key_mapping_button.clicked.connect(self.show_key_mapping_dialog)
+        self.shot_window_button = QPushButton(f"射击窗口: {int(self.shot_detection_window * 1000)}ms")
+        self.shot_window_button.clicked.connect(self.set_shot_detection_window)
         self.principle_button = QPushButton("核心原理")
         self.principle_button.clicked.connect(self.show_principle_dialog)
         row2.addWidget(self.key_mapping_button)
+        row2.addWidget(self.shot_window_button)
         row2.addWidget(self.principle_button)
         
         row3 = QHBoxLayout()
@@ -639,6 +649,7 @@ class MainWindow(QMainWindow):
         self.stop_timer_signal.connect(self.stop_timer)
         self.key_press_signal.connect(self.on_key_press_main_thread)
         self.key_release_signal.connect(self.on_key_release_main_thread)
+        self.mouse_click_signal.connect(self.on_mouse_click_main_thread)
         self.log_signal.connect(self.append_log)
         self.update_dashboard_signal.connect(self.update_dashboard_ui)
 
@@ -651,7 +662,9 @@ class MainWindow(QMainWindow):
         try:
             self.listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release)
             self.listener.start()
-            self.append_log("键盘监听器已就绪")
+            self.mouse_listener = mouse.Listener(on_click=self.on_mouse_click)
+            self.mouse_listener.start()
+            self.append_log("键盘/鼠标监听器已就绪")
         except Exception as e:
             QMessageBox.critical(self, "错误", f"监听启动失败: {e}")
 
@@ -676,6 +689,17 @@ class MainWindow(QMainWindow):
     def on_release(self, key):
         try: self.key_release_signal.emit(key.char.upper(), time.perf_counter())
         except AttributeError: pass
+
+    def on_mouse_click(self, x, y, button, pressed):
+        if button == mouse.Button.left:
+            self.mouse_click_signal.emit(pressed, time.perf_counter())
+
+    @pyqtSlot(bool, float)
+    def on_mouse_click_main_thread(self, pressed, event_time):
+        self.mouse_left_pressed = pressed
+        if pressed:
+            self.recent_left_press_time = event_time
+            self.update_pending_shot_events(event_time)
 
     @pyqtSlot(str, float)
     def on_key_press_main_thread(self, orig_char, press_time):
@@ -753,28 +777,97 @@ class MainWindow(QMainWindow):
     def process_stop_event(self, key_type, diff_ms, event_time, transition):
         if abs(diff_ms) > self.filter_threshold: return
 
+        shot_type, shot_delay_ms = self.classify_shot_type(event_time)
+
         if self.background_recording_active:
-            entry = {'time': event_time, 'wall_time': datetime.datetime.now(), 'time_diff': diff_ms / 1000.0, 'key_type': key_type, 'transition': transition}
+            entry = {
+                'time': event_time,
+                'wall_time': datetime.datetime.now(),
+                'time_diff': diff_ms / 1000.0,
+                'key_type': key_type,
+                'transition': transition,
+                'shot_type': shot_type,
+                'shot_delay_ms': shot_delay_ms
+            }
             self.background_buffer.append(entry)
-            data_entry = {'time': event_time, 'wall_time': entry['wall_time'], 'time_diff': diff_ms / 1000.0, 'transition': transition}
-            if key_type == 'AD': self.ad_data.append(data_entry)
-            else: self.ws_data.append(data_entry)
+            if key_type == 'AD': self.ad_data.append(entry)
+            else: self.ws_data.append(entry)
+            self.queue_no_shot_update(entry)
             return
 
         impact_percentage = (abs(diff_ms) / self.human_reaction_time) * 100
-        color = self.get_color(diff_ms)
+        data_entry = {
+            'time': event_time,
+            'wall_time': datetime.datetime.now(),
+            'time_diff': diff_ms / 1000.0,
+            'key_type': key_type,
+            'transition': transition,
+            'shot_type': shot_type,
+            'shot_delay_ms': shot_delay_ms
+        }
+        color = self.get_record_color(data_entry)
         timing_str = "完美" if abs(diff_ms) <= 5 else ("太快" if diff_ms < 0 else "太慢")
 
-        self.feedback_signal.emit(f"[{key_type} {transition}] {timing_str}: {diff_ms:+.1f} ms", color)
+        self.feedback_signal.emit(f"[{key_type} {transition} {self.format_shot_tag(data_entry)}] {timing_str}: {diff_ms:+.1f} ms", color)
         self.update_dashboard_signal.emit(diff_ms, impact_percentage)
 
-        data_entry = {'time': event_time, 'wall_time': datetime.datetime.now(), 'time_diff': diff_ms / 1000.0, 'transition': transition}
         if key_type == 'AD': self.ad_data.append(data_entry)
         else: self.ws_data.append(data_entry)
 
-        self.history_signal.emit(f"{key_type} {transition}", data_entry['wall_time'], diff_ms / 1000.0, {}, color)
+        self.history_signal.emit("", data_entry['wall_time'], diff_ms / 1000.0, data_entry, color)
         self.update_plots_efficiently()
         self.update_direction_analysis()
+        self.queue_no_shot_update(data_entry)
+
+    def classify_shot_type(self, event_time):
+        if self.mouse_left_pressed:
+            return "Spray", None
+        if self.recent_left_press_time is None:
+            return "No shot", None
+        if 0 <= event_time - self.recent_left_press_time <= self.shot_pre_window:
+            return "Shot", (self.recent_left_press_time - event_time) * 1000
+        return "No shot", None
+
+    def queue_no_shot_update(self, entry):
+        if entry.get('shot_type') != "No shot":
+            return
+        self.pending_shot_events.append(entry)
+        QTimer.singleShot(int(self.shot_detection_window * 1000), lambda: self.finalize_pending_shot_event(entry))
+
+    def finalize_pending_shot_event(self, entry):
+        if entry in self.pending_shot_events:
+            self.pending_shot_events.remove(entry)
+
+    def update_pending_shot_events(self, press_time):
+        updated = False
+        for entry in list(self.pending_shot_events):
+            delta = press_time - entry['time']
+            if delta < 0:
+                continue
+            if delta <= self.shot_detection_window:
+                entry['shot_type'] = "Shot"
+                entry['shot_delay_ms'] = delta * 1000
+                self.pending_shot_events.remove(entry)
+                self.refresh_record_display(entry)
+                updated = True
+            else:
+                self.pending_shot_events.remove(entry)
+        if updated and not self.background_recording_active:
+            self.update_plots_efficiently()
+            self.update_direction_analysis()
+
+    def refresh_record_display(self, entry):
+        item = entry.get('history_item')
+        if item is not None:
+            item.setText(self.format_history_item_text(entry))
+            item.setForeground(QBrush(self.get_record_color(entry)))
+            item.setBackground(QBrush(self.get_shot_timing_background(entry)))
+            diff_ms = entry['time_diff'] * 1000
+            timing_str = "完美" if abs(diff_ms) <= 5 else ("太快" if diff_ms < 0 else "太慢")
+            self.feedback_signal.emit(
+                f"[{entry['key_type']} {entry['transition']} {self.format_shot_tag(entry)}] {timing_str}: {diff_ms:+.1f} ms",
+                self.get_record_color(entry)
+            )
 
     def get_key_type(self, key):
         if key in ['A', 'D']: return 'AD'
@@ -834,14 +927,32 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(str, object, float, dict, QColor)
     def update_history(self, k_type, t, diff, detail, color):
-        ms = diff * 1000
-        if isinstance(t, datetime.datetime):
-            time_str = t.strftime("%H:%M:%S.%f")[:-3]
+        if isinstance(detail, dict) and detail:
+            item = QListWidgetItem(self.format_history_item_text(detail))
+            detail['history_item'] = item
         else:
-            time_str = datetime.datetime.fromtimestamp(t).strftime("%H:%M:%S.%f")[:-3]
-        item = QListWidgetItem(f"[{k_type}] {time_str} │ {ms:+.1f}ms")
+            ms = diff * 1000
+            if isinstance(t, datetime.datetime):
+                time_str = t.strftime("%H:%M:%S.%f")[:-3]
+            else:
+                time_str = datetime.datetime.fromtimestamp(t).strftime("%H:%M:%S.%f")[:-3]
+            item = QListWidgetItem(f"[{k_type}] {time_str} │ {ms:+.1f}ms")
         item.setForeground(QBrush(color))
+        if isinstance(detail, dict) and detail:
+            item.setBackground(QBrush(self.get_shot_timing_background(detail)))
         self.history_list.addItem(item); self.history_list.scrollToBottom()
+
+    def format_history_item_text(self, entry):
+        time_str = entry['wall_time'].strftime("%H:%M:%S.%f")[:-3]
+        ms = entry['time_diff'] * 1000
+        return f"[{entry['key_type']} {entry['transition']} {self.format_shot_tag(entry)}] {time_str} │ {ms:+.1f}ms"
+
+    def format_shot_tag(self, entry):
+        shot_type = entry.get('shot_type', 'No shot')
+        if shot_type != "Shot":
+            return shot_type
+        delay = entry.get('shot_delay_ms')
+        return "Shot" if delay is None else f"Shot L:{delay:+.0f}ms"
 
     @pyqtSlot(str, bool)
     def update_key_state_display(self, key, pressed):
@@ -855,8 +966,8 @@ class MainWindow(QMainWindow):
         records = list(self.ad_data) + list(self.ws_data)
         sections = {}
         for transition in ['A->D', 'D->A', 'W->S', 'S->W']:
-            values = [record['time_diff'] * 1000 for record in records if record.get('transition') == transition]
-            sections[transition] = self.format_direction_section(transition, values)
+            transition_records = [record for record in records if record.get('transition') == transition]
+            sections[transition] = self.format_direction_section(transition, transition_records)
 
         self.direction_analysis_view.setHtml(f"""
         <style>
@@ -909,9 +1020,9 @@ class MainWindow(QMainWindow):
         </table>
         """)
 
-    def format_direction_section(self, transition, values):
+    def format_direction_section(self, transition, records):
         title = transition.replace("->", "")
-        if not values:
+        if not records:
             return f"""
             <div class="card">
                 <div class="title">{title} <span style="color:{COLOR_TEXT_SUB}; font-size:11px;">({transition})</span></div>
@@ -919,6 +1030,7 @@ class MainWindow(QMainWindow):
             </div>
             """
 
+        values = [record['time_diff'] * 1000 for record in records]
         abs_values = [abs(value) for value in values]
         count = len(values)
         avg_abs = statistics.mean(abs_values)
@@ -929,6 +1041,26 @@ class MainWindow(QMainWindow):
         grade, grade_color = self.get_accuracy_grade(avg_abs, stdev)
         bias = "偏慢" if avg_raw > 5 else "偏快" if avg_raw < -5 else "均衡"
         bias_color = self.get_color(avg_raw).name()
+        shot_count = sum(1 for record in records if record.get('shot_type') == "Shot")
+        spray_count = sum(1 for record in records if record.get('shot_type') == "Spray")
+        no_shot_count = sum(1 for record in records if record.get('shot_type') == "No shot")
+        shot_delays = [
+            record['shot_delay_ms']
+            for record in records
+            if record.get('shot_type') == "Shot" and record.get('shot_delay_ms') is not None
+        ]
+        if shot_delays:
+            avg_shot_delay = statistics.mean(shot_delays)
+            ideal_count = sum(1 for delay in shot_delays if 40 <= delay <= 90)
+            ideal_pct = ideal_count / len(shot_delays) * 100
+            shot_timing_color = self.get_shot_timing_color(avg_shot_delay).name()
+            shot_timing_html = (
+                f"<span class=\"value\" style=\"color:{shot_timing_color};\">"
+                f"{avg_shot_delay:+.0f} ms / 合理 {ideal_count}/{len(shot_delays)} ({ideal_pct:.0f}%)"
+                f"</span>"
+            )
+        else:
+            shot_timing_html = f"<span class=\"value\" style=\"color:{COLOR_TEXT_SUB};\">暂无 Shot 时机</span>"
 
         return f"""
         <div class="card">
@@ -939,6 +1071,8 @@ class MainWindow(QMainWindow):
             <div><span class="label">平均偏向</span> <span class="value" style="color:{bias_color};">{avg_raw:+.1f} ms ({bias})</span></div>
             <div><span class="label">稳定性</span> <span class="value">{stdev:.1f}</span></div>
             <div><span class="label">最佳/最差</span> <span class="value">{best:.1f} / {worst:.1f} ms</span></div>
+            <div><span class="label">射击分组</span> <span class="value">Shot {shot_count} / Spray {spray_count} / <span style="color:{COLOR_NO_SHOT};">No shot {no_shot_count}</span></span></div>
+            <div><span class="label">左键时机</span> {shot_timing_html}</div>
         </div>
         """
 
@@ -960,7 +1094,8 @@ class MainWindow(QMainWindow):
         y = [d['time_diff'] * 1000 for d in list(data_deque)[-self.record_count:]]
         x = range(1, len(y) + 1)
         ax_line.clear(); self.setup_axes_style(ax_line)
-        ax_line.scatter(x, y, c=[self.get_color(v).name() for v in y], s=50, alpha=0.9)
+        records = list(data_deque)[-self.record_count:]
+        ax_line.scatter(x, y, c=[self.get_record_color(record).name() for record in records], s=50, alpha=0.9)
         if y: ax_line.axhline(statistics.mean(y), color=COLOR_ACCENT, linestyle='--', alpha=0.5)
         ax_box.clear(); self.setup_axes_style(ax_box)
         if len(y) >= 5:
@@ -984,6 +1119,24 @@ class MainWindow(QMainWindow):
             return QColor("#ff9100")
         return QColor(COLOR_DANGER)
 
+    def get_record_color(self, record):
+        if record.get('shot_type') == "No shot":
+            return QColor(COLOR_NO_SHOT)
+        return self.get_color(record['time_diff'] * 1000)
+
+    def get_shot_timing_color(self, delay_ms):
+        if 40 <= delay_ms <= 90:
+            return QColor(COLOR_SUCCESS)
+        if delay_ms < 40:
+            return QColor(COLOR_WARNING)
+        return QColor(COLOR_DANGER)
+
+    def get_shot_timing_background(self, record):
+        if record.get('shot_type') != "Shot" or record.get('shot_delay_ms') is None:
+            return QColor(0, 0, 0, 0)
+        color = self.get_shot_timing_color(record['shot_delay_ms'])
+        return QColor(color.red(), color.green(), color.blue(), 45)
+
     @pyqtSlot(str, int)
     def start_timer(self, k, i): self.timers[k].start(i)
 
@@ -995,6 +1148,7 @@ class MainWindow(QMainWindow):
 
     def refresh(self):
         self.ad_data.clear(); self.ws_data.clear(); self.background_buffer.clear()
+        self.pending_shot_events.clear()
         self.waiting_for_opposite_key.clear()
         self.last_record_time = 0
         for timer in self.timers.values():
@@ -1034,6 +1188,37 @@ class MainWindow(QMainWindow):
             self.filter_threshold = int(dlg.get_selected_option().replace("ms",""))
             self.filter_threshold_button.setText(f"阈值: {self.filter_threshold}ms")
 
+    def set_shot_detection_window(self):
+        dlg = ModernDialog("射击窗口", self)
+        layout = QVBoxLayout(dlg)
+
+        hint = QLabel("急停后左键按下仍归类为 Shot 的最大滞后时间")
+        hint.setStyleSheet(f"color: {COLOR_TEXT_SUB}; margin-bottom: 8px;")
+        layout.addWidget(hint)
+
+        spin = QDoubleSpinBox()
+        spin.setRange(50, 1000)
+        spin.setDecimals(0)
+        spin.setSingleStep(10)
+        spin.setValue(self.shot_detection_window * 1000)
+        spin.setSuffix(" ms")
+        layout.addWidget(spin)
+
+        btn_layout = QHBoxLayout()
+        ok_btn = QPushButton("确定")
+        ok_btn.clicked.connect(dlg.accept)
+        cancel_btn = QPushButton("取消")
+        cancel_btn.clicked.connect(dlg.reject)
+        btn_layout.addStretch()
+        btn_layout.addWidget(ok_btn)
+        btn_layout.addWidget(cancel_btn)
+        layout.addLayout(btn_layout)
+
+        if dlg.exec_() == QDialog.Accepted:
+            selected_ms = int(spin.value())
+            self.shot_detection_window = selected_ms / 1000.0
+            self.shot_window_button.setText(f"射击窗口: {selected_ms}ms")
+
     def show_key_mapping_dialog(self):
         dlg = KeyMappingDialog(self.key_mappings, self)
         if dlg.exec_() == QDialog.Accepted:
@@ -1043,6 +1228,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         if hasattr(self, 'listener'): self.listener.stop()
+        if hasattr(self, 'mouse_listener'): self.mouse_listener.stop()
         super().closeEvent(event)
 
 if __name__ == "__main__":
