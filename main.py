@@ -840,8 +840,26 @@ class MainWindow(QMainWindow):
         if k in self.waiting_for_opposite_key: del self.waiting_for_opposite_key[k]
 
     def refresh(self):
-        self.ad_data.clear(); self.ws_data.clear(); self.history_list.clear(); self.output_list.clear()
+        self.ad_data.clear(); self.ws_data.clear(); self.background_buffer.clear()
+        self.waiting_for_opposite_key.clear()
+        self.last_record_time = 0
+        for timer in self.timers.values():
+            timer.stop()
+        for state in self.key_state.values():
+            state['pressed'] = False
+            state['time'] = None
+        for key_widget in self.key_widgets.values():
+            key_widget.set_active(False)
+
+        self.history_list.clear(); self.output_list.clear()
         self.feedback_label.setText("数据已重置")
+        self.feedback_label.setStyleSheet(f"""
+            background-color: {COLOR_PANEL};
+            color: {COLOR_TEXT_SUB};
+            border-radius: 4px;
+            border-left: 4px solid {COLOR_BORDER};
+        """)
+        self.impact_label.setText(f"<span style='color:{COLOR_TEXT_SUB}; font-size:14px;'>等待操作数据...</span>")
         self.update_plots_efficiently()
 
     def append_log(self, msg):
