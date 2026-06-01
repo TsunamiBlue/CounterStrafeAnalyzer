@@ -1,4 +1,4 @@
-<h1 align="center">CounterStrafeAnalyzer</h1>
+<h1 align="center">A Local CS2 Counter-Strafing and Shooting-Input Analysis Tool</h1>
 
 <p align="center">
   <a href="https://github.com/TsunamiBlue/CounterStrafeAnalyzer/actions/workflows/release.yml"><img alt="Build Release" src="https://github.com/TsunamiBlue/CounterStrafeAnalyzer/actions/workflows/release.yml/badge.svg"></a>
@@ -11,7 +11,7 @@
   <a href="README.en.md"><img alt="English" src="https://img.shields.io/badge/lang-English-blue"></a>
 </p>
 
-<p align="center">A local CS2 counter-strafing and shooting-input analysis tool.</p>
+<p align="center"><strong>CounterStrafeAnalyzer</strong></p>
 
 CS2 Counter-Strafing Evaluation Tool is a local input analysis tool built with Python 3 and PyQt5. It measures Counter-Strike 2 counter-strafing timing, directional consistency, and the relationship between movement correction and left-mouse shooting input.
 

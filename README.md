@@ -1,4 +1,4 @@
-<h1 align="center">CounterStrafeAnalyzer</h1>
+<h1 align="center">面向 CS2 的本地急停与射击输入分析工具</h1>
 
 <p align="center">
   <a href="https://github.com/TsunamiBlue/CounterStrafeAnalyzer/actions/workflows/release.yml"><img alt="Build Release" src="https://github.com/TsunamiBlue/CounterStrafeAnalyzer/actions/workflows/release.yml/badge.svg"></a>
@@ -11,7 +11,7 @@
   <a href="README.en.md"><img alt="English" src="https://img.shields.io/badge/lang-English-blue"></a>
 </p>
 
-<p align="center">面向 CS2 的本地急停与射击输入分析工具。</p>
+<p align="center"><strong>CounterStrafeAnalyzer</strong></p>
 
 CS2 Counter-Strafing Evaluation Tool 是一个基于 Python 3 和 PyQt5 的本地急停分析工具，用于量化 Counter-Strike 2 中的反向急停时机、方向稳定性，以及急停与鼠标左键射击输入之间的关系。
 
