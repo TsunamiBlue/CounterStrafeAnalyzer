@@ -475,6 +475,7 @@ class MainWindow(QMainWindow):
         self.filter_threshold = 120
         self.last_record_time = 0
         self.min_time_between_records = 0.05
+        self.same_direction_detection = False
         
         self.background_recording_active = False
         self.background_buffer = []
@@ -544,10 +545,13 @@ class MainWindow(QMainWindow):
         self.record_count_button.clicked.connect(self.set_record_count)
         self.filter_threshold_button = QPushButton(f"阈值: {self.filter_threshold}ms")
         self.filter_threshold_button.clicked.connect(self.set_filter_threshold)
+        self.same_direction_btn = QPushButton("同向检测: 关")
+        self.same_direction_btn.clicked.connect(self.toggle_same_direction_detection)
         self.bg_toggle_btn = QPushButton("背景: 关")
         self.bg_toggle_btn.clicked.connect(self.toggle_background)
         row1.addWidget(self.record_count_button)
         row1.addWidget(self.filter_threshold_button)
+        row1.addWidget(self.same_direction_btn)
         row1.addWidget(self.bg_toggle_btn)
         
         row2 = QHBoxLayout()
@@ -670,15 +674,23 @@ class MainWindow(QMainWindow):
             self.key_state[mapped]['time'] = press_time
             if not self.background_recording_active:
                 self.key_state_signal.emit(mapped, True)
-            
+
             key_type = self.get_key_type(mapped)
-            if key_type in self.waiting_for_opposite_key and mapped == self.waiting_for_opposite_key[key_type]['key']:
+            if not key_type:
+                return
+
+            if key_type in self.waiting_for_opposite_key and mapped in self.waiting_for_opposite_key[key_type]['allowed_keys']:
                 current_time = time.perf_counter()
                 if current_time - self.last_record_time >= self.min_time_between_records:
-                    release_time = self.waiting_for_opposite_key[key_type]['release_time']
+                    waiting = self.waiting_for_opposite_key[key_type]
+                    release_time = waiting['release_time']
                     diff_ms = (press_time - release_time) * 1000
-                    self.process_stop_event(key_type, diff_ms, press_time, "松开后按")
+                    transition = f"{waiting['released_key']}->{mapped}"
+                    self.process_stop_event(key_type, diff_ms, press_time, transition)
                     self.last_record_time = current_time
+                del self.waiting_for_opposite_key[key_type]
+                self.stop_timer_signal.emit(key_type)
+            elif key_type in self.waiting_for_opposite_key and mapped in self.get_axis_keys(key_type):
                 del self.waiting_for_opposite_key[key_type]
                 self.stop_timer_signal.emit(key_type)
 
@@ -707,23 +719,31 @@ class MainWindow(QMainWindow):
                 current_time = time.perf_counter()
                 if current_time - self.last_record_time >= self.min_time_between_records:
                     diff_ms = (opp_state['time'] - release_time) * 1000
-                    self.process_stop_event(key_type, diff_ms, release_time, "按住反向松开")
+                    transition = f"{mapped}->{opp_mapped}"
+                    self.process_stop_event(key_type, diff_ms, release_time, transition)
                     self.last_record_time = current_time
                 if key_type in self.waiting_for_opposite_key:
                     del self.waiting_for_opposite_key[key_type]
                     self.stop_timer_signal.emit(key_type)
                 return
 
-            self.waiting_for_opposite_key[key_type] = {'key': opp_mapped, 'release_time': release_time}
+            allowed_keys = {opp_mapped}
+            if self.same_direction_detection:
+                allowed_keys.add(mapped)
+            self.waiting_for_opposite_key[key_type] = {
+                'released_key': mapped,
+                'allowed_keys': allowed_keys,
+                'release_time': release_time
+            }
             self.start_timer_signal.emit(key_type, self.filter_threshold + 20)
 
-    def process_stop_event(self, key_type, diff_ms, event_time, desc):
+    def process_stop_event(self, key_type, diff_ms, event_time, transition):
         if abs(diff_ms) > self.filter_threshold: return
 
         if self.background_recording_active:
-            entry = {'time': event_time, 'wall_time': datetime.datetime.now(), 'time_diff': diff_ms / 1000.0, 'key_type': key_type}
+            entry = {'time': event_time, 'wall_time': datetime.datetime.now(), 'time_diff': diff_ms / 1000.0, 'key_type': key_type, 'transition': transition}
             self.background_buffer.append(entry)
-            data_entry = {'time': event_time, 'wall_time': entry['wall_time'], 'time_diff': diff_ms / 1000.0}
+            data_entry = {'time': event_time, 'wall_time': entry['wall_time'], 'time_diff': diff_ms / 1000.0, 'transition': transition}
             if key_type == 'AD': self.ad_data.append(data_entry)
             else: self.ws_data.append(data_entry)
             return
@@ -731,21 +751,31 @@ class MainWindow(QMainWindow):
         impact_percentage = (abs(diff_ms) / self.human_reaction_time) * 100
         color = self.get_color(diff_ms)
         timing_str = "完美" if abs(diff_ms) <= 5 else ("太快" if diff_ms < 0 else "太慢")
-        
-        self.feedback_signal.emit(f"[{key_type}] {timing_str}: {diff_ms:+.1f} ms", color)
+
+        self.feedback_signal.emit(f"[{key_type} {transition}] {timing_str}: {diff_ms:+.1f} ms", color)
         self.update_dashboard_signal.emit(diff_ms, impact_percentage)
-        
-        data_entry = {'time': event_time, 'wall_time': datetime.datetime.now(), 'time_diff': diff_ms / 1000.0}
+
+        data_entry = {'time': event_time, 'wall_time': datetime.datetime.now(), 'time_diff': diff_ms / 1000.0, 'transition': transition}
         if key_type == 'AD': self.ad_data.append(data_entry)
         else: self.ws_data.append(data_entry)
 
-        self.history_signal.emit(key_type, data_entry['wall_time'], diff_ms / 1000.0, {}, color)
+        self.history_signal.emit(f"{key_type} {transition}", data_entry['wall_time'], diff_ms / 1000.0, {}, color)
         self.update_plots_efficiently()
 
     def get_key_type(self, key):
         if key in ['A', 'D']: return 'AD'
         if key in ['W', 'S']: return 'WS'
         return None
+
+    def get_axis_keys(self, key_type):
+        return {'A', 'D'} if key_type == 'AD' else {'W', 'S'}
+
+    def toggle_same_direction_detection(self):
+        self.same_direction_detection = not self.same_direction_detection
+        self.waiting_for_opposite_key.clear()
+        for timer in self.timers.values():
+            timer.stop()
+        self.same_direction_btn.setText(f"同向检测: {'开' if self.same_direction_detection else '关'}")
 
     def toggle_background_recording(self):
         if not self.background_recording_active:
@@ -825,9 +855,18 @@ class MainWindow(QMainWindow):
 
     def get_color(self, ms):
         val = abs(ms)
-        if val <= 10: return QColor(COLOR_SUCCESS)
-        if val <= 50: return QColor("#29b6f6")
-        if val <= 100: return QColor(COLOR_WARNING)
+        if val <= 5:
+            return QColor(COLOR_SUCCESS)
+        if ms < 0:
+            if val <= 20:
+                return QColor("#29b6f6")
+            if val <= 50:
+                return QColor("#7c4dff")
+            return QColor("#d500f9")
+        if val <= 20:
+            return QColor(COLOR_WARNING)
+        if val <= 50:
+            return QColor("#ff9100")
         return QColor(COLOR_DANGER)
 
     @pyqtSlot(str, int)
