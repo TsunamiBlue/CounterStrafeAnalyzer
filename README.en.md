@@ -1,15 +1,17 @@
-# CounterStrafeAnalyzer
+<h1 align="center">CounterStrafeAnalyzer</h1>
 
-[![Build Release](https://github.com/TsunamiBlue/CounterStrafeAnalyzer/actions/workflows/release.yml/badge.svg)](https://github.com/TsunamiBlue/CounterStrafeAnalyzer/actions/workflows/release.yml)
-[![Latest Release](https://img.shields.io/github/v/release/TsunamiBlue/CounterStrafeAnalyzer?display_name=tag&sort=semver)](https://github.com/TsunamiBlue/CounterStrafeAnalyzer/releases)
-[![Platform](https://img.shields.io/badge/platform-Windows-0078d4)](#requirements)
-[![Python](https://img.shields.io/badge/python-3.8%2B-3776ab)](#requirements)
-[![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)](LICENSE)
-[![Commercial Use](https://img.shields.io/badge/commercial%20use-not%20allowed-red)](LICENSE)
-[![中文](https://img.shields.io/badge/lang-中文-blue)](README.md)
-[![English](https://img.shields.io/badge/lang-English-blue)](README.en.md)
+<p align="center">
+  <a href="https://github.com/TsunamiBlue/CounterStrafeAnalyzer/actions/workflows/release.yml"><img alt="Build Release" src="https://github.com/TsunamiBlue/CounterStrafeAnalyzer/actions/workflows/release.yml/badge.svg"></a>
+  <a href="https://github.com/TsunamiBlue/CounterStrafeAnalyzer/releases"><img alt="Latest Release" src="https://img.shields.io/github/v/release/TsunamiBlue/CounterStrafeAnalyzer?display_name=tag&sort=semver"></a>
+  <a href="#requirements"><img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078d4"></a>
+  <a href="#requirements"><img alt="Python" src="https://img.shields.io/badge/python-3.8%2B-3776ab"></a>
+  <a href="LICENSE"><img alt="License: CC BY-NC 4.0" src="https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey"></a>
+  <a href="LICENSE"><img alt="Commercial Use" src="https://img.shields.io/badge/commercial%20use-not%20allowed-red"></a>
+  <a href="README.md"><img alt="中文" src="https://img.shields.io/badge/lang-中文-blue"></a>
+  <a href="README.en.md"><img alt="English" src="https://img.shields.io/badge/lang-English-blue"></a>
+</p>
 
-A local CS2 counter-strafing and shooting-input analysis tool.
+<p align="center">A local CS2 counter-strafing and shooting-input analysis tool.</p>
 
 CS2 Counter-Strafing Evaluation Tool is a local input analysis tool built with Python 3 and PyQt5. It measures Counter-Strike 2 counter-strafing timing, directional consistency, and the relationship between movement correction and left-mouse shooting input.
 
@@ -98,6 +100,10 @@ Shot history rows also use an additional background highlight for left-click tim
 The target platform is Windows because the tool relies on low-level keyboard and mouse hooks and is designed around CS2 gameplay.
 
 ## Installation
+
+You can download the Windows `.exe` directly from [GitHub Releases](https://github.com/TsunamiBlue/CounterStrafeAnalyzer/releases). No Python environment is required for the release build.
+
+To run from source, install dependencies first:
 
 ```bash
 pip install -r requirements.txt
