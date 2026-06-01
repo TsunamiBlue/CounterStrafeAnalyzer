@@ -1,36 +1,39 @@
-# CS2急停测试工具
+# CS2 Counter-Strafing Evaluation Tool
 
-#### Description
-{**When you're done, you can delete the content in this README and update the file with details for others getting started with your repository**}
+## Overview
 
-#### Software Architecture
-Software architecture description
+This is a high-precision Counter-Strike 2 counter-strafing evaluation tool built with Python 3 and PyQt5. It captures raw keyboard input events, calculates the time delta between releasing one movement key and pressing the opposite key, and visualizes the player's consistency.
 
-#### Installation
+The tool is designed for advanced players who want to quantify counter-strafing timing and improve movement muscle memory.
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+## Features
 
-#### Instructions
+- Keyboard hook based input capture
+- AD and WS axis timing analysis
+- Real-time feedback and history display
+- Background recording mode with post-session analysis
+- Matplotlib charts for trend and distribution visualization
+- Configurable reaction baseline, filter threshold, and key mappings
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+## Requirements
 
-#### Contribution
+- Python 3.8+
+- Windows 10/11 recommended
 
-1.  Fork the repository
-2.  Create Feat_xxx branch
-3.  Commit your code
-4.  Create Pull Request
+Install dependencies:
 
+```bash
+pip install -r requirements.txt
+```
 
-#### Gitee Feature
+## Usage
 
-1.  You can use Readme\_XXX.md to support different languages, such as Readme\_en.md, Readme\_zh.md
-2.  Gitee blog [blog.gitee.com](https://blog.gitee.com)
-3.  Explore open source project [https://gitee.com/explore](https://gitee.com/explore)
-4.  The most valuable open source project [GVP](https://gitee.com/gvp)
-5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
-6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+Run the application:
+
+```bash
+python main.py
+```
+
+## Notes
+
+This tool only analyzes local keyboard input. It does not modify game files or read game memory. When using it with strict anti-cheat platforms, evaluate the risk of running any third-party input listener in the background.

@@ -14,12 +14,12 @@ import datetime
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget,
     QHBoxLayout, QListWidget, QMessageBox, QListWidgetItem, QPushButton,
-    QSizePolicy, QSpacerItem, QGridLayout, QGroupBox, QDialog,
+    QGridLayout, QDialog,
     QRadioButton, QButtonGroup, QLineEdit, QFormLayout, QTextBrowser,
-    QTabWidget, QFrame, QDoubleSpinBox, QScrollArea
+    QTabWidget, QFrame, QDoubleSpinBox
 )
-from PyQt5.QtCore import Qt, pyqtSignal, QUrl, QSize, QTimer, pyqtSlot
-from PyQt5.QtGui import QFont, QColor, QBrush, QIcon, QDesktopServices, QPixmap, QPainter
+from PyQt5.QtCore import Qt, pyqtSignal, QTimer, pyqtSlot
+from PyQt5.QtGui import QFont, QColor, QBrush, QPixmap, QPainter
 from pynput import keyboard
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -449,7 +449,7 @@ class AnalysisReportDialog(ModernDialog):
 
 class MainWindow(QMainWindow):
     feedback_signal = pyqtSignal(str, QColor)
-    history_signal = pyqtSignal(str, float, float, dict, QColor)
+    history_signal = pyqtSignal(str, object, float, dict, QColor)
     key_state_signal = pyqtSignal(str, bool) 
     start_timer_signal = pyqtSignal(str, int)
     stop_timer_signal = pyqtSignal(str)
@@ -719,11 +719,11 @@ class MainWindow(QMainWindow):
 
     def process_stop_event(self, key_type, diff_ms, event_time, desc):
         if abs(diff_ms) > self.filter_threshold: return
-        
+
         if self.background_recording_active:
-            entry = {'time': event_time, 'time_diff': diff_ms / 1000.0, 'key_type': key_type}
+            entry = {'time': event_time, 'wall_time': datetime.datetime.now(), 'time_diff': diff_ms / 1000.0, 'key_type': key_type}
             self.background_buffer.append(entry)
-            data_entry = {'time': event_time, 'time_diff': diff_ms / 1000.0}
+            data_entry = {'time': event_time, 'wall_time': entry['wall_time'], 'time_diff': diff_ms / 1000.0}
             if key_type == 'AD': self.ad_data.append(data_entry)
             else: self.ws_data.append(data_entry)
             return
@@ -735,11 +735,11 @@ class MainWindow(QMainWindow):
         self.feedback_signal.emit(f"[{key_type}] {timing_str}: {diff_ms:+.1f} ms", color)
         self.update_dashboard_signal.emit(diff_ms, impact_percentage)
         
-        data_entry = {'time': event_time, 'time_diff': diff_ms / 1000.0}
+        data_entry = {'time': event_time, 'wall_time': datetime.datetime.now(), 'time_diff': diff_ms / 1000.0}
         if key_type == 'AD': self.ad_data.append(data_entry)
         else: self.ws_data.append(data_entry)
 
-        self.history_signal.emit(key_type, event_time, diff_ms / 1000.0, {}, color)
+        self.history_signal.emit(key_type, data_entry['wall_time'], diff_ms / 1000.0, {}, color)
         self.update_plots_efficiently()
 
     def get_key_type(self, key):
@@ -787,10 +787,13 @@ class MainWindow(QMainWindow):
         self.feedback_label.setText(text)
         self.feedback_label.setStyleSheet(f"background-color: {COLOR_PANEL}; color: {color.name()}; border-left: 4px solid {color.name()};")
 
-    @pyqtSlot(str, float, float, dict, QColor)
+    @pyqtSlot(str, object, float, dict, QColor)
     def update_history(self, k_type, t, diff, detail, color):
         ms = diff * 1000
-        time_str = datetime.datetime.fromtimestamp(t).strftime("%H:%M:%S.%f")[:-3] 
+        if isinstance(t, datetime.datetime):
+            time_str = t.strftime("%H:%M:%S.%f")[:-3]
+        else:
+            time_str = datetime.datetime.fromtimestamp(t).strftime("%H:%M:%S.%f")[:-3]
         item = QListWidgetItem(f"[{k_type}] {time_str} │ {ms:+.1f}ms")
         item.setForeground(QBrush(color))
         self.history_list.addItem(item); self.history_list.scrollToBottom()
@@ -804,7 +807,11 @@ class MainWindow(QMainWindow):
         self._update_single_figure(self.ws_data, self.ax_ws_line, self.ax_ws_box, self.ws_canvas)
 
     def _update_single_figure(self, data_deque, ax_line, ax_box, canvas):
-        if not data_deque: return
+        if not data_deque:
+            ax_line.clear(); self.setup_axes_style(ax_line)
+            ax_box.clear(); self.setup_axes_style(ax_box)
+            canvas.draw_idle()
+            return
         y = [d['time_diff'] * 1000 for d in list(data_deque)[-self.record_count:]]
         x = range(1, len(y) + 1)
         ax_line.clear(); self.setup_axes_style(ax_line)
