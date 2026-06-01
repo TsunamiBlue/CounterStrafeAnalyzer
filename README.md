@@ -6,10 +6,10 @@
 [![Python](https://img.shields.io/badge/python-3.8%2B-3776ab)](#环境要求)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)](LICENSE)
 [![Commercial Use](https://img.shields.io/badge/commercial%20use-not%20allowed-red)](LICENSE)
+[![中文](https://img.shields.io/badge/lang-中文-blue)](README.md)
+[![English](https://img.shields.io/badge/lang-English-blue)](README.en.md)
 
 面向 CS2 的本地急停与射击输入分析工具。
-
-> 本项目基于原始 Gitee 项目 [DDAsashio/CS2StopReflex](https://gitee.com/DDAsashio/CS2StopReflex) 继续整理和扩展。
 
 CS2 Counter-Strafing Evaluation Tool 是一个基于 Python 3 和 PyQt5 的本地急停分析工具，用于量化 Counter-Strike 2 中的反向急停时机、方向稳定性，以及急停与鼠标左键射击输入之间的关系。
 
@@ -22,6 +22,7 @@ CS2 Counter-Strafing Evaluation Tool 是一个基于 Python 3 和 PyQt5 的本�
 - [射击分组](#射击分组)
 - [安装与运行](#安装与运行)
 - [许可证](#许可证)
+- [致谢](#致谢)
 - [免责声明](#免责声明)
 
 ## 核心功能
@@ -115,6 +116,10 @@ python main.py
 本项目采用 [Creative Commons Attribution-NonCommercial 4.0 International](LICENSE) 许可。
 
 允许非商业用途下的复制、分享和改编，但不允许未经授权的商业使用。
+
+## 致谢
+
+本项目基于原始 Gitee 项目 [DDAsashio/CS2StopReflex](https://gitee.com/DDAsashio/CS2StopReflex) 继续整理和扩展。
 
 ## 免责声明
 

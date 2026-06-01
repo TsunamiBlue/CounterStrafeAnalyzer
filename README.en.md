@@ -6,10 +6,10 @@
 [![Python](https://img.shields.io/badge/python-3.8%2B-3776ab)](#requirements)
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/license-CC%20BY--NC%204.0-lightgrey)](LICENSE)
 [![Commercial Use](https://img.shields.io/badge/commercial%20use-not%20allowed-red)](LICENSE)
+[![中文](https://img.shields.io/badge/lang-中文-blue)](README.md)
+[![English](https://img.shields.io/badge/lang-English-blue)](README.en.md)
 
 A local CS2 counter-strafing and shooting-input analysis tool.
-
-> This project is based on the original Gitee repository [DDAsashio/CS2StopReflex](https://gitee.com/DDAsashio/CS2StopReflex), with further cleanup and feature extensions.
 
 CS2 Counter-Strafing Evaluation Tool is a local input analysis tool built with Python 3 and PyQt5. It measures Counter-Strike 2 counter-strafing timing, directional consistency, and the relationship between movement correction and left-mouse shooting input.
 
@@ -22,6 +22,7 @@ The tool only analyzes local keyboard and mouse input events. It does not read g
 - [Shooting Groups](#shooting-groups)
 - [Installation](#installation)
 - [License](#license)
+- [Acknowledgements](#acknowledgements)
 - [Disclaimer](#disclaimer)
 
 ## Features
@@ -113,6 +114,10 @@ python main.py
 This project is licensed under [Creative Commons Attribution-NonCommercial 4.0 International](LICENSE).
 
 You may copy, share, and adapt this work for non-commercial purposes. Commercial use is not permitted without prior written permission.
+
+## Acknowledgements
+
+This project is based on the original Gitee repository [DDAsashio/CS2StopReflex](https://gitee.com/DDAsashio/CS2StopReflex), with further cleanup and feature extensions.
 
 ## Disclaimer
 

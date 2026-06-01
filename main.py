@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-# CS2 Counter-Strafing Evaluation Tool (Tech UI + Background Recording + No Shortcuts + BG Toggle)
-# Optimized by Senior Engineer for Nuitka & PyInstaller Compatibility
+# CounterStrafeAnalyzer
+# Local CS2 counter-strafing and shooting-input analysis tool.
 #
 
 import sys
