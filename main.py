@@ -533,6 +533,19 @@ class MainWindow(QMainWindow):
         self.output_list = QListWidget()
         self.output_list.setStyleSheet(f"color: {COLOR_TEXT_SUB};")
         self.tab_widget.addTab(self.output_list, "系统日志")
+
+        self.direction_analysis_view = QTextBrowser()
+        self.direction_analysis_view.setStyleSheet(f"""
+            QTextBrowser {{
+                background-color: #000000;
+                border: 1px solid {COLOR_BORDER};
+                border-radius: 4px;
+                color: {COLOR_TEXT_MAIN};
+                font-family: "Microsoft YaHei UI";
+            }}
+        """)
+        self.tab_widget.addTab(self.direction_analysis_view, "方向分析")
+        self.update_direction_analysis()
         left_panel.addWidget(self.tab_widget, stretch=1)
         
         controls_frame = QFrame()
@@ -761,6 +774,7 @@ class MainWindow(QMainWindow):
 
         self.history_signal.emit(f"{key_type} {transition}", data_entry['wall_time'], diff_ms / 1000.0, {}, color)
         self.update_plots_efficiently()
+        self.update_direction_analysis()
 
     def get_key_type(self, key):
         if key in ['A', 'D']: return 'AD'
@@ -790,6 +804,7 @@ class MainWindow(QMainWindow):
             self.bg_record_btn.setText("后台记录 (不渲染)")
             self.bg_record_btn.setStyleSheet(f"border: 1px dashed {COLOR_ACCENT}; color: {COLOR_ACCENT};")
             self.update_plots_efficiently()
+            self.update_direction_analysis()
             AnalysisReportDialog(self.background_buffer, self).exec_()
     
     def toggle_background(self):
@@ -835,6 +850,106 @@ class MainWindow(QMainWindow):
     def update_plots_efficiently(self):
         self._update_single_figure(self.ad_data, self.ax_ad_line, self.ax_ad_box, self.ad_canvas)
         self._update_single_figure(self.ws_data, self.ax_ws_line, self.ax_ws_box, self.ws_canvas)
+
+    def update_direction_analysis(self):
+        records = list(self.ad_data) + list(self.ws_data)
+        sections = {}
+        for transition in ['A->D', 'D->A', 'W->S', 'S->W']:
+            values = [record['time_diff'] * 1000 for record in records if record.get('transition') == transition]
+            sections[transition] = self.format_direction_section(transition, values)
+
+        self.direction_analysis_view.setHtml(f"""
+        <style>
+            body {{
+                background: #000;
+                color: {COLOR_TEXT_MAIN};
+                font-family: "Microsoft YaHei UI";
+                font-size: 12px;
+            }}
+            .card {{
+                background: {COLOR_PANEL};
+                border: 1px solid {COLOR_BORDER};
+                border-radius: 6px;
+                padding: 9px;
+                margin-bottom: 8px;
+            }}
+            .title {{
+                color: {COLOR_ACCENT};
+                font-size: 15px;
+                font-weight: bold;
+                margin-bottom: 6px;
+            }}
+            .empty {{
+                color: {COLOR_TEXT_SUB};
+                line-height: 1.6;
+            }}
+            .label {{
+                color: {COLOR_TEXT_SUB};
+            }}
+            .value {{
+                color: {COLOR_TEXT_MAIN};
+                font-family: Consolas;
+                font-weight: bold;
+            }}
+            .grade {{
+                font-size: 20px;
+                font-weight: bold;
+                font-family: Consolas;
+            }}
+        </style>
+        <table width="100%" cellspacing="8" cellpadding="0">
+            <tr>
+                <td width="50%" valign="top">{sections['A->D']}</td>
+                <td width="50%" valign="top">{sections['D->A']}</td>
+            </tr>
+            <tr>
+                <td width="50%" valign="top">{sections['W->S']}</td>
+                <td width="50%" valign="top">{sections['S->W']}</td>
+            </tr>
+        </table>
+        """)
+
+    def format_direction_section(self, transition, values):
+        title = transition.replace("->", "")
+        if not values:
+            return f"""
+            <div class="card">
+                <div class="title">{title} <span style="color:{COLOR_TEXT_SUB}; font-size:11px;">({transition})</span></div>
+                <div class="empty">暂无有效样本</div>
+            </div>
+            """
+
+        abs_values = [abs(value) for value in values]
+        count = len(values)
+        avg_abs = statistics.mean(abs_values)
+        avg_raw = statistics.mean(values)
+        stdev = statistics.stdev(abs_values) if count > 1 else 0.0
+        best = min(abs_values)
+        worst = max(abs_values)
+        grade, grade_color = self.get_accuracy_grade(avg_abs, stdev)
+        bias = "偏慢" if avg_raw > 5 else "偏快" if avg_raw < -5 else "均衡"
+        bias_color = self.get_color(avg_raw).name()
+
+        return f"""
+        <div class="card">
+            <div class="title">{title} <span style="color:{COLOR_TEXT_SUB}; font-size:11px;">({transition})</span></div>
+            <div><span class="label">评级</span> <span class="grade" style="color:{grade_color};">{grade}</span></div>
+            <div><span class="label">样本</span> <span class="value">{count}</span></div>
+            <div><span class="label">平均误差</span> <span class="value">{avg_abs:.1f} ms</span></div>
+            <div><span class="label">平均偏向</span> <span class="value" style="color:{bias_color};">{avg_raw:+.1f} ms ({bias})</span></div>
+            <div><span class="label">稳定性</span> <span class="value">{stdev:.1f}</span></div>
+            <div><span class="label">最佳/最差</span> <span class="value">{best:.1f} / {worst:.1f} ms</span></div>
+        </div>
+        """
+
+    def get_accuracy_grade(self, avg_abs, stdev):
+        if avg_abs <= 10 and stdev <= 5:
+            return "S", COLOR_SUCCESS
+        if avg_abs <= 20:
+            return "A", COLOR_ACCENT
+        if avg_abs <= 40:
+            return "B", COLOR_WARNING
+        return "C", COLOR_DANGER
 
     def _update_single_figure(self, data_deque, ax_line, ax_box, canvas):
         if not data_deque:
@@ -900,6 +1015,7 @@ class MainWindow(QMainWindow):
         """)
         self.impact_label.setText(f"<span style='color:{COLOR_TEXT_SUB}; font-size:14px;'>等待操作数据...</span>")
         self.update_plots_efficiently()
+        self.update_direction_analysis()
 
     def append_log(self, msg):
         self.output_list.addItem(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {msg}")
