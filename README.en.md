@@ -21,7 +21,6 @@ The tool only analyzes local keyboard and mouse input events. It does not read g
 - [Counter-Strafe Logic](#counter-strafe-logic)
 - [Shooting Groups](#shooting-groups)
 - [Installation](#installation)
-- [Release Build](#release-build)
 - [License](#license)
 - [Disclaimer](#disclaimer)
 
@@ -108,27 +107,6 @@ pip install -r requirements.txt
 ```bash
 python main.py
 ```
-
-## Release Build
-
-This repository includes a GitHub Actions workflow:
-
-```text
-.github/workflows/release.yml
-```
-
-Push a version tag to build a Windows executable and publish a GitHub Release:
-
-```bash
-git tag v1.0.0
-git push github v1.0.0
-```
-
-The release contains:
-
-- `CounterStrafeAnalyzer.exe`
-- source zip
-- GitHub-generated Source code zip/tar.gz
 
 ## License
 

@@ -21,7 +21,6 @@ CS2 Counter-Strafing Evaluation Tool 是一个基于 Python 3 和 PyQt5 的本�
 - [急停判定逻辑](#急停判定逻辑)
 - [射击分组](#射击分组)
 - [安装与运行](#安装与运行)
-- [构建 Release](#构建-release)
 - [许可证](#许可证)
 - [免责声明](#免责声明)
 
@@ -110,27 +109,6 @@ pip install -r requirements.txt
 ```bash
 python main.py
 ```
-
-## 构建 Release
-
-仓库包含 GitHub Actions workflow：
-
-```text
-.github/workflows/release.yml
-```
-
-推送版本标签后会自动在线构建 Windows 可执行文件并创建 GitHub Release：
-
-```bash
-git tag v1.0.0
-git push github v1.0.0
-```
-
-Release 会包含：
-
-- `CounterStrafeAnalyzer.exe`
-- source zip
-- GitHub 自动生成的 Source code zip/tar.gz
 
 ## 许可证
 
