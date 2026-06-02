@@ -31,7 +31,10 @@ jobs:
 
       - name: Build executable
         run: |
-          pyinstaller --noconfirm --onefile --windowed --name CounterStrafeAnalyzer --collect-all matplotlib --collect-all pynput main.py
+          $pyinstallerArgs = @('--noconfirm', '--onefile', '--windowed', '--name', 'CounterStrafeAnalyzer', '--collect-all', 'matplotlib', '--collect-all', 'pynput')
+          if (Test-Path background.png) { $pyinstallerArgs += @('--add-data', 'background.png;.') }
+          $pyinstallerArgs += 'main.py'
+          pyinstaller @pyinstallerArgs
 
       - name: Package source archive
         run: |

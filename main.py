@@ -825,7 +825,7 @@ class MainWindow(QMainWindow):
         if self.recent_left_press_time is None:
             return "No shot", None
         if 0 <= event_time - self.recent_left_press_time <= self.shot_pre_window:
-            return "Shot", (self.recent_left_press_time - event_time) * 1000
+            return "Shot", (event_time - self.recent_left_press_time) * 1000
         return "No shot", None
 
     def queue_no_shot_update(self, entry):
@@ -1227,8 +1227,21 @@ class MainWindow(QMainWindow):
     def show_principle_dialog(self): PrinciplesDialog(self).exec_()
 
     def closeEvent(self, event):
-        if hasattr(self, 'listener'): self.listener.stop()
-        if hasattr(self, 'mouse_listener'): self.mouse_listener.stop()
+        if self.background_recording_active:
+            reply = QMessageBox.warning(
+                self, "后台记录进行中",
+                "后台记录正在运行，关闭窗口将丢失所有未保存的记录数据。\n确定要退出吗？",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            )
+            if reply == QMessageBox.No:
+                event.ignore()
+                return
+        if hasattr(self, 'listener'):
+            self.listener.stop()
+            self.listener.join(timeout=1.0)
+        if hasattr(self, 'mouse_listener'):
+            self.mouse_listener.stop()
+            self.mouse_listener.join(timeout=1.0)
         super().closeEvent(event)
 
 if __name__ == "__main__":
