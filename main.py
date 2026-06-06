@@ -32,123 +32,197 @@ rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei', 'Arial']
 rcParams['axes.unicode_minus'] = False
 rcParams['savefig.facecolor'] = 'none'
 
-# --- Tech UI Color Definitions ---
-COLOR_BG = "#0a0a0a"
-COLOR_PANEL = "#141414"
-COLOR_PANEL_LIGHT = "#1e1e1e"
-COLOR_ACCENT = "#00f3ff"
-COLOR_TEXT_MAIN = "#e0e0e0"
-COLOR_TEXT_SUB = "#666666"
-COLOR_KEY_OFF = "#1f1f1f"
-COLOR_KEY_ON = "#00f3ff"
-COLOR_BORDER = "#333333"
-COLOR_DANGER = "#ff2a6d"
-COLOR_WARNING = "#ffcc00"
-COLOR_SUCCESS = "#05ffa1"
-COLOR_NO_SHOT = "#777777"
+# --- Theme System ---
 
-# --- Stylesheet (CSS) ---
-STYLESHEET = f"""
+# Dark theme color map (improved log contrast: brighter success/warning/danger/no-shot)
+_DARK = {
+    'BG':              "#0a0a0a",
+    'PANEL':           "#141414",
+    'PANEL_LIGHT':     "#1e1e1e",
+    'ACCENT':          "#00f3ff",
+    'TEXT_MAIN':       "#e0e0e0",
+    'TEXT_SUB':        "#888888",
+    'KEY_OFF':         "#1f1f1f",
+    'KEY_ON':          "#00f3ff",
+    'BORDER':          "#333333",
+    'DANGER':          "#ff4477",
+    'WARNING':         "#ffdd33",
+    'SUCCESS':         "#00ff88",
+    'NO_SHOT':         "#aaaaaa",
+    'LIST_BG':         "#000000",
+    'INPUT_BG':        "#0f0f0f",
+    'BTN_HOVER_BG':    "#2a2a2a",
+    'BTN_PRESS_BG':    "rgba(0, 243, 255, 0.1)",
+    'SCROLL_HANDLE':   "#333333",
+    'SCROLL_HANDLE_HV':"#555555",
+    'ACCENT_RGBA':     "rgba(0, 243, 255, 0.15)",
+}
+
+# Light theme color map
+_LIGHT = {
+    'BG':              "#f0f0f0",
+    'PANEL':           "#ffffff",
+    'PANEL_LIGHT':     "#e8e8e8",
+    'ACCENT':          "#0066cc",
+    'TEXT_MAIN':       "#1a1a1a",
+    'TEXT_SUB':        "#777777",
+    'KEY_OFF':         "#d0d0d0",
+    'KEY_ON':          "#0066cc",
+    'BORDER':          "#cccccc",
+    'DANGER':          "#cc0000",
+    'WARNING':         "#e67e00",
+    'SUCCESS':         "#1a8a1a",
+    'NO_SHOT':         "#999999",
+    'LIST_BG':         "#ffffff",
+    'INPUT_BG':        "#ffffff",
+    'BTN_HOVER_BG':    "#d0d0d0",
+    'BTN_PRESS_BG':    "rgba(0, 102, 204, 0.1)",
+    'SCROLL_HANDLE':   "#cccccc",
+    'SCROLL_HANDLE_HV':"#aaaaaa",
+    'ACCENT_RGBA':     "rgba(0, 102, 204, 0.1)",
+}
+
+# Module-level color globals — initialized to dark theme
+COLOR_BG = COLOR_PANEL = COLOR_PANEL_LIGHT = COLOR_ACCENT = ""
+COLOR_TEXT_MAIN = COLOR_TEXT_SUB = COLOR_KEY_OFF = COLOR_KEY_ON = ""
+COLOR_BORDER = COLOR_DANGER = COLOR_WARNING = COLOR_SUCCESS = COLOR_NO_SHOT = ""
+
+def _build_stylesheet(c):
+    """Build a Qt stylesheet string from a theme color dictionary `c`."""
+    return f"""
     QMainWindow {{
-        background-color: {COLOR_BG};
+        background-color: {c['BG']};
     }}
     QWidget {{
-        color: {COLOR_TEXT_MAIN};
+        color: {c['TEXT_MAIN']};
         font-family: "Microsoft YaHei UI", sans-serif;
     }}
     QGroupBox {{
         border: none;
-        background-color: {COLOR_PANEL};
+        background-color: {c['PANEL']};
         border-radius: 8px;
         padding-top: 15px;
-        margin-top: 0px; 
+        margin-top: 0px;
     }}
     QGroupBox::title {{
         subcontrol-origin: margin;
         subcontrol-position: top left;
         padding: 5px 0px 0px 5px;
         left: 10px;
-        color: {COLOR_TEXT_SUB};
+        color: {c['TEXT_SUB']};
         font-size: 11px;
         font-weight: bold;
     }}
     QListWidget {{
-        background-color: #000000;
-        border: 1px solid {COLOR_BORDER};
+        background-color: {c['LIST_BG']};
+        border: 1px solid {c['BORDER']};
         border-radius: 4px;
         outline: none;
         font-family: "Consolas", monospace;
     }}
     QListWidget::item:selected {{
-        background-color: rgba(0, 243, 255, 0.15);
-        color: {COLOR_ACCENT};
-        border-left: 2px solid {COLOR_ACCENT};
+        background-color: {c['ACCENT_RGBA']};
+        color: {c['ACCENT']};
+        border-left: 2px solid {c['ACCENT']};
     }}
-    QTabWidget::pane {{ 
+    QTabWidget::pane {{
         border: none;
-        background: {COLOR_PANEL};
+        background: {c['PANEL']};
     }}
     QTabBar::tab {{
-        background: {COLOR_BG};
-        color: {COLOR_TEXT_SUB};
+        background: {c['BG']};
+        color: {c['TEXT_SUB']};
         padding: 8px 16px;
         border: none;
-        border-bottom: 2px solid {COLOR_BORDER};
+        border-bottom: 2px solid {c['BORDER']};
         font-weight: bold;
     }}
     QTabBar::tab:selected {{
-        color: {COLOR_ACCENT};
-        border-bottom: 2px solid {COLOR_ACCENT};
+        color: {c['ACCENT']};
+        border-bottom: 2px solid {c['ACCENT']};
     }}
     QPushButton {{
-        background-color: {COLOR_PANEL_LIGHT};
-        border: 1px solid {COLOR_BORDER};
+        background-color: {c['PANEL_LIGHT']};
+        border: 1px solid {c['BORDER']};
         border-radius: 4px;
         padding: 8px 16px;
-        color: {COLOR_TEXT_MAIN};
+        color: {c['TEXT_MAIN']};
         font-weight: bold;
     }}
     QPushButton:hover {{
-        background-color: #2a2a2a;
-        border-color: {COLOR_ACCENT};
-        color: {COLOR_ACCENT};
+        background-color: {c['BTN_HOVER_BG']};
+        border-color: {c['ACCENT']};
+        color: {c['ACCENT']};
     }}
     QPushButton:pressed {{
-        background-color: rgba(0, 243, 255, 0.1);
-        border-color: {COLOR_ACCENT};
+        background-color: {c['BTN_PRESS_BG']};
+        border-color: {c['ACCENT']};
     }}
     QSpinBox, QDoubleSpinBox {{
-        background-color: #0f0f0f;
-        border: 1px solid {COLOR_BORDER};
-        color: {COLOR_ACCENT};
+        background-color: {c['INPUT_BG']};
+        border: 1px solid {c['BORDER']};
+        color: {c['ACCENT']};
         padding: 5px;
         border-radius: 3px;
         font-family: "Consolas";
         font-weight: bold;
     }}
     QLineEdit {{
-        background: #0f0f0f;
-        color: {COLOR_ACCENT};
-        border: 1px solid {COLOR_BORDER};
+        background: {c['INPUT_BG']};
+        color: {c['ACCENT']};
+        border: 1px solid {c['BORDER']};
         padding: 4px;
         border-radius: 3px;
         font-family: "Consolas";
     }}
     QScrollBar:vertical {{
         border: none;
-        background: {COLOR_BG};
+        background: {c['BG']};
         width: 6px;
         margin: 0px;
     }}
     QScrollBar::handle:vertical {{
-        background: #333;
+        background: {c['SCROLL_HANDLE']};
         min-height: 20px;
         border-radius: 3px;
     }}
     QScrollBar::handle:vertical:hover {{
-        background: #555;
+        background: {c['SCROLL_HANDLE_HV']};
     }}
 """
+
+# Current stylesheet and dark-mode flag
+STYLESHEET = ""
+_IS_DARK = True
+
+
+def apply_theme(is_dark):
+    """Switch between dark and light themes (updates module-level globals)."""
+    global COLOR_BG, COLOR_PANEL, COLOR_PANEL_LIGHT, COLOR_ACCENT
+    global COLOR_TEXT_MAIN, COLOR_TEXT_SUB, COLOR_KEY_OFF, COLOR_KEY_ON
+    global COLOR_BORDER, COLOR_DANGER, COLOR_WARNING, COLOR_SUCCESS, COLOR_NO_SHOT
+    global STYLESHEET, _IS_DARK
+
+    c = _DARK if is_dark else _LIGHT
+    COLOR_BG = c['BG']
+    COLOR_PANEL = c['PANEL']
+    COLOR_PANEL_LIGHT = c['PANEL_LIGHT']
+    COLOR_ACCENT = c['ACCENT']
+    COLOR_TEXT_MAIN = c['TEXT_MAIN']
+    COLOR_TEXT_SUB = c['TEXT_SUB']
+    COLOR_KEY_OFF = c['KEY_OFF']
+    COLOR_KEY_ON = c['KEY_ON']
+    COLOR_BORDER = c['BORDER']
+    COLOR_DANGER = c['DANGER']
+    COLOR_WARNING = c['WARNING']
+    COLOR_SUCCESS = c['SUCCESS']
+    COLOR_NO_SHOT = c['NO_SHOT']
+    STYLESHEET = _build_stylesheet(c)
+    _IS_DARK = is_dark
+
+
+# Initialize with dark theme
+apply_theme(True)
 
 def resource_path(relative_path):
     """ 
@@ -555,9 +629,9 @@ class MainWindow(QMainWindow):
         self.update_direction_analysis()
         left_panel.addWidget(self.tab_widget, stretch=1)
         
-        controls_frame = QFrame()
-        controls_frame.setStyleSheet(f"background-color: {COLOR_PANEL}; border-radius: 6px;")
-        controls_layout = QVBoxLayout(controls_frame)
+        self.controls_frame = QFrame()
+        self.controls_frame.setStyleSheet(f"background-color: {COLOR_PANEL}; border-radius: 6px;")
+        controls_layout = QVBoxLayout(self.controls_frame)
         controls_layout.setSpacing(8)
         
         row1 = QHBoxLayout()
@@ -567,12 +641,12 @@ class MainWindow(QMainWindow):
         self.filter_threshold_button.clicked.connect(self.set_filter_threshold)
         self.same_direction_btn = QPushButton("同向检测: 关")
         self.same_direction_btn.clicked.connect(self.toggle_same_direction_detection)
-        self.bg_toggle_btn = QPushButton("背景: 关")
-        self.bg_toggle_btn.clicked.connect(self.toggle_background)
+        self.theme_toggle_btn = QPushButton("主题: 暗色")
+        self.theme_toggle_btn.clicked.connect(self.toggle_theme)
         row1.addWidget(self.record_count_button)
         row1.addWidget(self.filter_threshold_button)
         row1.addWidget(self.same_direction_btn)
-        row1.addWidget(self.bg_toggle_btn)
+        row1.addWidget(self.theme_toggle_btn)
         
         row2 = QHBoxLayout()
         self.key_mapping_button = QPushButton("按键映射")
@@ -598,25 +672,25 @@ class MainWindow(QMainWindow):
         controls_layout.addLayout(row1)
         controls_layout.addLayout(row2)
         controls_layout.addLayout(row3)
-        left_panel.addWidget(controls_frame)
+        left_panel.addWidget(self.controls_frame)
 
         # Right Panel
         right_panel = QVBoxLayout()
         right_panel.setSpacing(15)
 
-        dashboard_frame = QFrame()
-        dashboard_frame.setStyleSheet(f"background-color: {COLOR_PANEL}; border-radius: 6px;")
-        dashboard_layout = QHBoxLayout(dashboard_frame)
+        self.dashboard_frame = QFrame()
+        self.dashboard_frame.setStyleSheet(f"background-color: {COLOR_PANEL}; border-radius: 6px;")
+        dashboard_layout = QHBoxLayout(self.dashboard_frame)
         
         input_layout = QVBoxLayout()
-        input_label = QLabel("生理反应基准 (ms):")
-        input_label.setStyleSheet(f"color: {COLOR_TEXT_SUB}; font-size: 12px;")
+        self.input_label = QLabel("生理反应基准 (ms):")
+        self.input_label.setStyleSheet(f"color: {COLOR_TEXT_SUB}; font-size: 12px;")
         self.reaction_spin = QDoubleSpinBox()
         self.reaction_spin.setRange(50, 500)
         self.reaction_spin.setValue(150.0)
         self.reaction_spin.setSuffix(" ms")
         self.reaction_spin.valueChanged.connect(self.update_reaction_time)
-        input_layout.addWidget(input_label)
+        input_layout.addWidget(self.input_label)
         input_layout.addWidget(self.reaction_spin)
         input_layout.addStretch()
         
@@ -625,17 +699,19 @@ class MainWindow(QMainWindow):
         self.impact_label.setText(f"<span style='color:{COLOR_TEXT_SUB}; font-size:14px;'>等待操作数据...</span>")
         dashboard_layout.addLayout(input_layout, 1)
         dashboard_layout.addWidget(self.impact_label, 3)
-        right_panel.addWidget(dashboard_frame)
+        right_panel.addWidget(self.dashboard_frame)
 
         # Charts
         self.ad_figure = Figure(figsize=(5, 4), dpi=100); self.ad_figure.patch.set_alpha(0)
         self.ad_canvas = FigureCanvas(self.ad_figure); self.ad_canvas.setStyleSheet("background-color: transparent;")
-        ad_layout = QVBoxLayout(); ad_layout.addWidget(QLabel("AD 急停趋势", styleSheet=f"color:{COLOR_TEXT_SUB};font-weight:bold;")); ad_layout.addWidget(self.ad_canvas)
+        self.ad_chart_label = QLabel("AD 急停趋势", styleSheet=f"color:{COLOR_TEXT_SUB};font-weight:bold;")
+        ad_layout = QVBoxLayout(); ad_layout.addWidget(self.ad_chart_label); ad_layout.addWidget(self.ad_canvas)
         right_panel.addLayout(ad_layout)
 
         self.ws_figure = Figure(figsize=(5, 4), dpi=100); self.ws_figure.patch.set_alpha(0)
         self.ws_canvas = FigureCanvas(self.ws_figure); self.ws_canvas.setStyleSheet("background-color: transparent;")
-        ws_layout = QVBoxLayout(); ws_layout.addWidget(QLabel("WS 急停趋势", styleSheet=f"color:{COLOR_TEXT_SUB};font-weight:bold;")); ws_layout.addWidget(self.ws_canvas)
+        self.ws_chart_label = QLabel("WS 急停趋势", styleSheet=f"color:{COLOR_TEXT_SUB};font-weight:bold;")
+        ws_layout = QVBoxLayout(); ws_layout.addWidget(self.ws_chart_label); ws_layout.addWidget(self.ws_canvas)
         right_panel.addLayout(ws_layout)
 
         main_layout.addLayout(left_panel, 1)
@@ -900,10 +976,80 @@ class MainWindow(QMainWindow):
             self.update_direction_analysis()
             AnalysisReportDialog(self.background_buffer, self).exec_()
     
-    def toggle_background(self):
-        new_state = not self.centralWidget()._bg_visible
-        self.centralWidget().set_bg_visible(new_state)
-        self.bg_toggle_btn.setText(f"背景: {'开' if new_state else '关'}")
+    def toggle_theme(self):
+        """Switch between dark and light themes."""
+        global _IS_DARK
+        new_is_dark = not _IS_DARK
+        apply_theme(new_is_dark)
+
+        # Re-apply global stylesheet
+        QApplication.instance().setStyleSheet(STYLESHEET)
+
+        # Update standalone widget styles that use inline setStyleSheet
+        self.feedback_label.setStyleSheet(f"""
+            background-color: {COLOR_PANEL};
+            color: {COLOR_TEXT_SUB};
+            border-radius: 4px;
+            border-left: 4px solid {COLOR_BORDER};
+        """)
+        self.output_list.setStyleSheet(f"color: {COLOR_TEXT_SUB};")
+        self.direction_analysis_view.setStyleSheet(f"""
+            QTextBrowser {{
+                background-color: {COLOR_BG if _IS_DARK else '#ffffff'};
+                border: 1px solid {COLOR_BORDER};
+                border-radius: 4px;
+                color: {COLOR_TEXT_MAIN};
+                font-family: "Microsoft YaHei UI";
+            }}
+        """)
+        self.controls_frame.setStyleSheet(f"background-color: {COLOR_PANEL}; border-radius: 6px;")
+        self.dashboard_frame.setStyleSheet(f"background-color: {COLOR_PANEL}; border-radius: 6px;")
+        self.refresh_button.setStyleSheet(f"color: {COLOR_DANGER};")
+        self.input_label.setStyleSheet(f"color: {COLOR_TEXT_SUB}; font-size: 12px;")
+        chart_label_style = f"color:{COLOR_TEXT_SUB};font-weight:bold;"
+        self.ad_chart_label.setStyleSheet(chart_label_style)
+        self.ws_chart_label.setStyleSheet(chart_label_style)
+
+        # Update KeyCap widgets
+        for key in ['W', 'A', 'S', 'D']:
+            w = self.key_widgets[key]
+            is_active = self.key_state[key]['pressed']
+            key_border_color = '#333333' if _IS_DARK else '#cccccc'
+            key_bottom_color = '#111111' if _IS_DARK else '#aaaaaa'
+            key_text_color = '#555555' if _IS_DARK else '#999999'
+            w.default_style = f"""
+                background-color: {COLOR_KEY_OFF};
+                color: {key_text_color};
+                border: 1px solid {key_border_color};
+                border-radius: 8px;
+                border-bottom: 5px solid {key_bottom_color};
+                margin-bottom: 2px;
+            """
+            w.active_style = f"""
+                background-color: rgba(0, 243, 255, 0.15);
+                color: {COLOR_KEY_ON};
+                border: 1px solid {COLOR_KEY_ON};
+                border-radius: 8px;
+                border-bottom: 2px solid {COLOR_KEY_ON};
+                margin-top: 3px;
+                margin-bottom: 0px;
+                box-shadow: 0 0 10px {COLOR_KEY_ON};
+            """
+            w.setStyleSheet(w.active_style if is_active else w.default_style)
+
+        # Update charts
+        self.update_plots_efficiently()
+        self.update_direction_analysis()
+
+        # Update toggle button text
+        self.theme_toggle_btn.setText(f"主题: {'暗色' if new_is_dark else '亮色'}")
+
+        # Update background recording button if active
+        if self.background_recording_active:
+            self.bg_record_btn.setStyleSheet(f"background-color: {COLOR_ACCENT}; color: #000; border: none;")
+            self.feedback_label.setStyleSheet(f"background-color: {COLOR_PANEL}; color: {COLOR_ACCENT}; border-left: 4px solid {COLOR_ACCENT};")
+        else:
+            self.bg_record_btn.setStyleSheet(f"border: 1px dashed {COLOR_ACCENT}; color: {COLOR_ACCENT};")
 
     @pyqtSlot(float, float)
     def update_dashboard_ui(self, diff_ms, percentage):
