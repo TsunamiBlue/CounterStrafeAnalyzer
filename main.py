@@ -34,21 +34,21 @@ rcParams['savefig.facecolor'] = 'none'
 
 # --- Theme System ---
 
-# Dark theme color map (improved log contrast: brighter success/warning/danger/no-shot)
+# Dark theme color map — high contrast for dark backgrounds
 _DARK = {
     'BG':              "#0a0a0a",
     'PANEL':           "#141414",
     'PANEL_LIGHT':     "#1e1e1e",
     'ACCENT':          "#00f3ff",
-    'TEXT_MAIN':       "#e0e0e0",
-    'TEXT_SUB':        "#888888",
+    'TEXT_MAIN':       "#f0f0f0",
+    'TEXT_SUB':        "#999999",
     'KEY_OFF':         "#1f1f1f",
     'KEY_ON':          "#00f3ff",
     'BORDER':          "#333333",
-    'DANGER':          "#ff4477",
-    'WARNING':         "#ffdd33",
+    'DANGER':          "#ff5252",
+    'WARNING':         "#ffea00",
     'SUCCESS':         "#00ff88",
-    'NO_SHOT':         "#aaaaaa",
+    'NO_SHOT':         "#666666",
     'LIST_BG':         "#000000",
     'INPUT_BG':        "#0f0f0f",
     'BTN_HOVER_BG':    "#2a2a2a",
@@ -58,28 +58,28 @@ _DARK = {
     'ACCENT_RGBA':     "rgba(0, 243, 255, 0.15)",
 }
 
-# Light theme color map
+# Light theme color map — high contrast for light backgrounds
 _LIGHT = {
     'BG':              "#f0f0f0",
     'PANEL':           "#ffffff",
     'PANEL_LIGHT':     "#e8e8e8",
-    'ACCENT':          "#0066cc",
-    'TEXT_MAIN':       "#1a1a1a",
-    'TEXT_SUB':        "#777777",
+    'ACCENT':          "#0055aa",
+    'TEXT_MAIN':       "#0a0a0a",
+    'TEXT_SUB':        "#555555",
     'KEY_OFF':         "#d0d0d0",
-    'KEY_ON':          "#0066cc",
-    'BORDER':          "#cccccc",
-    'DANGER':          "#cc0000",
-    'WARNING':         "#e67e00",
-    'SUCCESS':         "#1a8a1a",
-    'NO_SHOT':         "#999999",
+    'KEY_ON':          "#0055aa",
+    'BORDER':          "#bbbbbb",
+    'DANGER':          "#b71c1c",
+    'WARNING':         "#e65100",
+    'SUCCESS':         "#008a00",
+    'NO_SHOT':         "#888888",
     'LIST_BG':         "#ffffff",
     'INPUT_BG':        "#ffffff",
     'BTN_HOVER_BG':    "#d0d0d0",
-    'BTN_PRESS_BG':    "rgba(0, 102, 204, 0.1)",
+    'BTN_PRESS_BG':    "rgba(0, 85, 170, 0.1)",
     'SCROLL_HANDLE':   "#cccccc",
     'SCROLL_HANDLE_HV':"#aaaaaa",
-    'ACCENT_RGBA':     "rgba(0, 102, 204, 0.1)",
+    'ACCENT_RGBA':     "rgba(0, 85, 170, 0.12)",
 }
 
 # Module-level color globals — initialized to dark theme
@@ -618,7 +618,7 @@ class MainWindow(QMainWindow):
         self.direction_analysis_view = QTextBrowser()
         self.direction_analysis_view.setStyleSheet(f"""
             QTextBrowser {{
-                background-color: #000000;
+                background-color: {COLOR_BG};
                 border: 1px solid {COLOR_BORDER};
                 border-radius: 4px;
                 color: {COLOR_TEXT_MAIN};
@@ -937,7 +937,6 @@ class MainWindow(QMainWindow):
         if item is not None:
             item.setText(self.format_history_item_text(entry))
             item.setForeground(QBrush(self.get_record_color(entry)))
-            item.setBackground(QBrush(self.get_shot_timing_background(entry)))
             diff_ms = entry['time_diff'] * 1000
             timing_str = "完美" if abs(diff_ms) <= 5 else ("太快" if diff_ms < 0 else "太慢")
             self.feedback_signal.emit(
@@ -995,7 +994,7 @@ class MainWindow(QMainWindow):
         self.output_list.setStyleSheet(f"color: {COLOR_TEXT_SUB};")
         self.direction_analysis_view.setStyleSheet(f"""
             QTextBrowser {{
-                background-color: {COLOR_BG if _IS_DARK else '#ffffff'};
+                background-color: {COLOR_BG};
                 border: 1px solid {COLOR_BORDER};
                 border-radius: 4px;
                 color: {COLOR_TEXT_MAIN};
@@ -1084,8 +1083,6 @@ class MainWindow(QMainWindow):
                 time_str = datetime.datetime.fromtimestamp(t).strftime("%H:%M:%S.%f")[:-3]
             item = QListWidgetItem(f"[{k_type}] {time_str} │ {ms:+.1f}ms")
         item.setForeground(QBrush(color))
-        if isinstance(detail, dict) and detail:
-            item.setBackground(QBrush(self.get_shot_timing_background(detail)))
         self.history_list.addItem(item); self.history_list.scrollToBottom()
 
     def format_history_item_text(self, entry):
@@ -1118,7 +1115,7 @@ class MainWindow(QMainWindow):
         self.direction_analysis_view.setHtml(f"""
         <style>
             body {{
-                background: #000;
+                background: {COLOR_BG};
                 color: {COLOR_TEXT_MAIN};
                 font-family: "Microsoft YaHei UI";
                 font-size: 12px;
@@ -1199,9 +1196,8 @@ class MainWindow(QMainWindow):
             avg_shot_delay = statistics.mean(shot_delays)
             ideal_count = sum(1 for delay in shot_delays if 40 <= delay <= 90)
             ideal_pct = ideal_count / len(shot_delays) * 100
-            shot_timing_color = self.get_shot_timing_color(avg_shot_delay).name()
             shot_timing_html = (
-                f"<span class=\"value\" style=\"color:{shot_timing_color};\">"
+                f"<span class=\"value\">"
                 f"{avg_shot_delay:+.0f} ms / 合理 {ideal_count}/{len(shot_delays)} ({ideal_pct:.0f}%)"
                 f"</span>"
             )
@@ -1250,20 +1246,30 @@ class MainWindow(QMainWindow):
         canvas.draw_idle()
 
     def get_color(self, ms):
+        """Return a high-contrast color based solely on strafe timing error.
+
+        Dark theme  → bright / neon colors against black.
+        Light theme → dark / saturated colors against white.
+        """
         val = abs(ms)
-        if val <= 5:
-            return QColor(COLOR_SUCCESS)
-        if ms < 0:
-            if val <= 20:
-                return QColor("#29b6f6")
-            if val <= 50:
-                return QColor("#7c4dff")
-            return QColor("#d500f9")
-        if val <= 20:
-            return QColor(COLOR_WARNING)
-        if val <= 50:
-            return QColor("#ff9100")
-        return QColor(COLOR_DANGER)
+        if _IS_DARK:
+            if val <= 5:       return QColor("#00ff88")   # bright green  — perfect
+            if ms < 0:
+                if val <= 20:  return QColor("#40c4ff")   # sky blue      — slightly fast
+                if val <= 50:  return QColor("#b388ff")   # soft purple   — moderately fast
+                return QColor("#ea80fc")                   # pink          — very fast
+            if val <= 20:      return QColor("#ffea00")   # bright yellow — slightly slow
+            if val <= 50:      return QColor("#ff9100")   # orange        — moderately slow
+            return QColor("#ff5252")                       # red           — very slow
+        else:
+            if val <= 5:       return QColor("#008a00")   # dark green    — perfect
+            if ms < 0:
+                if val <= 20:  return QColor("#01579b")   # dark blue     — slightly fast
+                if val <= 50:  return QColor("#4527a0")   # dark purple   — moderately fast
+                return QColor("#880e4f")                   # dark magenta  — very fast
+            if val <= 20:      return QColor("#e65100")   # dark amber    — slightly slow
+            if val <= 50:      return QColor("#bf360c")   # dark orange   — moderately slow
+            return QColor("#b71c1c")                       # dark red      — very slow
 
     def get_record_color(self, record):
         if record.get('shot_type') == "No shot":
@@ -1271,17 +1277,13 @@ class MainWindow(QMainWindow):
         return self.get_color(record['time_diff'] * 1000)
 
     def get_shot_timing_color(self, delay_ms):
-        if 40 <= delay_ms <= 90:
-            return QColor(COLOR_SUCCESS)
-        if delay_ms < 40:
-            return QColor(COLOR_WARNING)
-        return QColor(COLOR_DANGER)
+        """Deprecated: left-click timing is no longer color-highlighted.
+        Returns a neutral color so callers still compile."""
+        return QColor(COLOR_TEXT_SUB)
 
     def get_shot_timing_background(self, record):
-        if record.get('shot_type') != "Shot" or record.get('shot_delay_ms') is None:
-            return QColor(0, 0, 0, 0)
-        color = self.get_shot_timing_color(record['shot_delay_ms'])
-        return QColor(color.red(), color.green(), color.blue(), 45)
+        """Left-click timing no longer adds background tint — always transparent."""
+        return QColor(0, 0, 0, 0)
 
     @pyqtSlot(str, int)
     def start_timer(self, k, i): self.timers[k].start(i)
